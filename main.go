@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/Numeez/rssAgg/internal/database"
 	"github.com/go-chi/chi"
@@ -17,6 +19,11 @@ type apiConfig struct{
 }
 
 func main(){
+	feed,err:=URLToFeed("https://wagslane.dev/index.xml")
+	if err !=nil{
+		log.Fatal(err)
+	}
+	fmt.Println(feed)
 	godotenv.Load()
 	port:=os.Getenv("PORT")
 	dbURL:=os.Getenv("DB_URL")
@@ -27,14 +34,15 @@ func main(){
 	if err!=nil{
 		log.Fatal("Can't connect to the database")
 	}
-	queries:=database.New(conn)
+	db:=database.New(conn)
 	apiCfg:= apiConfig{
-		DB: queries,
+		DB: db,
 	}
 	if port==""{
 		log.Fatal("Port is not found in the environment")
 	}
 	log.Printf("Server starting on port %v",port)
+	go startScraping(db,10,time.Minute)
 	router:= chi.NewRouter()
 	router.Use(cors.Handler(cors.Options{
 	AllowedOrigins: []string{"https://","http://"},
